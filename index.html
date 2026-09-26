@@ -3,7 +3,7 @@
 <head>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f6b3a">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <script>window.PWA_API = "https://script.google.com/macros/s/AKfycbx3PTufoKbUf463bkSldRXfQ0DEPF5EkDCHstCXVvlc6aiycEPby-wk0oILF-3tFa4W/exec";</script>
@@ -194,6 +194,17 @@ input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:
   #mtTbl td:nth-child(4):before{content:"Cost: ";color:var(--mute);font-size:12px}
 }
 .pick{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px;display:grid;gap:2px}
+@media (max-width:760px){
+  .retEdit,.retEdit tbody,.retEdit tr,.retEdit td{display:block;width:100%}
+  .retEdit thead{display:none}
+  .retEdit tr[data-ret]:not(.retSalv){border-top:1px solid var(--line);padding:8px 0 4px}
+  .retEdit td{padding:3px 0;text-align:left!important;border:0}
+  .retEdit td:nth-child(1){font-weight:600}
+  .retEdit td.note{font-weight:400}
+  .retEdit td:nth-child(3):before{content:"Doză/ha ";color:var(--mute);font-size:13px}
+  .retEdit td:nth-child(4):before{content:"Necesar: ";color:var(--mute);font-size:13px}
+  .retEdit td:nth-child(5):before{content:"Cost/ha: ";color:var(--mute);font-size:13px}
+}
 .leaflet-control-layers label{display:block;color:#1f2a1f;font-size:14px;line-height:1.9}
 .leaflet-control-layers label>span{display:flex;align-items:center;gap:6px}
 .leaflet-control-layers input{width:auto;margin:0;padding:0}
@@ -861,6 +872,37 @@ function completeazaSolVecin(){
 }
 
 
+
+
+function optiuniProdusReteta(pid){
+  const cat = produs(pid).categorie;
+  const ps = DB.Produse.filter(p=>p.id===pid || !cat || p.categorie===cat).sort((a,b)=>String(a.denumire).localeCompare(String(b.denumire),"ro"));
+  
+  const lipsa = DB.Produse.some(p=>p.id===pid) ? "" : `<option value="${esc(pid)}" selected>(produs șters)</option>`;
+  return lipsa + ps.map(p=>`<option value="${esc(p.id)}" ${p.id===pid?"selected":""}>${esc(p.denumire)}${p.um?" ("+esc(p.um)+")":""}</option>`).join("");
+}
+
+
+function sugestieReteta(l, ls){
+  if(eGrup(l.produs_id)) return null;
+  const cat = produs(l.produs_id).categorie; if(!cat) return null;
+  if(ls.filter(x=>!eGrup(x.produs_id) && produs(x.produs_id).categorie===cat).length>1) return null;
+  const pe = {};
+  DB.Aplicari.filter(a=>a.campanie===campanie && !ePrestare(a.parcela_id) && (a.cultura||parcela(a.parcela_id).cultura_plan)===l.cultura && produs(a.produs_id).categorie===cat && Number(a.doza_ha)>0)
+    .forEach(a=>{ const o = pe[a.produs_id] ||= {ha:0, q:0}; o.ha += Number(a.suprafata_ha)||0; o.q += (Number(a.doza_ha)||0)*(Number(a.suprafata_ha)||0); });
+  const best = Object.entries(pe).sort((a,b)=>b[1].ha-a[1].ha)[0]; if(!best || !(best[1].ha>0)) return null;
+  const doza = Math.round(best[1].q/best[1].ha*1000)/1000;
+  if(best[0]===l.produs_id && Math.abs(doza-Number(l.doza_ha))<1e-9) return null;
+  return {produs_id:best[0], doza, ha:best[1].ha};
+}
+async function salveazaReteta(id, campuri){
+  const vechi = DB.Retete.find(r=>r.id===id); if(!vechi) return;
+  const o = Object.assign({}, campuri);
+  if(String(vechi.nota||"").startsWith("EXEMPLU")) o.nota = "";
+  await call("updateRow","Retete",id,o);
+}
+
+
 const produs = id => DB.Produse.find(p=>p.id===id) || {denumire:"(produs șters)",um:"",pret_um:0};
 const parcela = id => DB.Parcele.find(p=>p.id===id) || {parcela:"?",ha:0};
 const setare = k => (DB.Setari.find(s=>s.cheie===k)||{}).valoare;
@@ -1184,8 +1226,13 @@ function renderNecesar(){
   const culturi = [...new Set(linii.map(l=>l.cultura))];
   $("pecultura").innerHTML = culturi.map(c=>{
     const ls = linii.filter(l=>l.cultura===c);
-    return `<h3><span class="sw" style="display:inline-block;vertical-align:middle;background:${CULOARE[c]||"#999"}"></span> ${esc(c)} · ${fmt(haCult[c]||0)} ha</h3><div class="tw"><table><thead><tr><th>Etapă</th><th>Produs</th><th class="n">Doză/ha</th><th class="n">Necesar</th><th class="n">Cost/ha</th></tr></thead><tbody>
-      ${ls.map(l=>{const um=umReteta(l), pret=pretReteta(l);return `<tr><td>${esc(l.etapa)}</td><td>${esc(numeReteta(l))}</td><td class="n">${fmtQ(l.doza_ha)} ${esc(um)}</td><td class="n">${fmtQ(l.nec)} ${esc(um)}</td><td class="n">${pret?fmt(l.doza_ha*pret,0)+" lei":"—"}</td></tr>`}).join("")}
+    return `<h3><span class="sw" style="display:inline-block;vertical-align:middle;background:${CULOARE[c]||"#999"}"></span> ${esc(c)} · ${fmt(haCult[c]||0)} ha</h3><div class="tw"><table class="retEdit"><thead><tr><th>Etapă</th><th>Produs</th><th class="n">Doză/ha</th><th class="n">Necesar</th><th class="n">Cost/ha</th></tr></thead><tbody>
+      ${ls.map(l=>{const um=umReteta(l), pret=pretReteta(l), s=sugestieReteta(l, ls);return `<tr data-ret="${esc(l.id)}"><td>${esc(l.etapa)}</td>
+        <td>${eGrup(l.produs_id) ? esc(numeReteta(l)) : `<select class="retProd" aria-label="Produsul din rețetă">${optiuniProdusReteta(l.produs_id)}</select>`}</td>
+        <td class="n" style="white-space:nowrap"><input class="retDoza" type="number" step="any" min="0" value="${esc(l.doza_ha)}" aria-label="Doza pe hectar" style="width:90px;min-height:36px;text-align:right"> ${esc(um)}</td>
+        <td class="n">${fmtQ(l.nec)} ${esc(um)}</td><td class="n">${pret?fmt(l.doza_ha*pret,0)+" lei":"—"}</td></tr>
+        <tr class="retSalv" data-ret="${esc(l.id)}" hidden><td colspan="5"><div class="btns" style="justify-content:flex-end"><button type="button" class="btn sm" data-ret-salv="${esc(l.id)}">Salvează rețeta</button><button type="button" class="btn sm ghost" data-ret-renunta="1">Renunță</button></div></td></tr>
+        ${s ? `<tr><td colspan="5" class="note">În lucrări ai pus ${esc(produs(s.produs_id).denumire)} · ${fmtQ(s.doza)} ${esc(produs(s.produs_id).um)}/ha (${fmt(s.ha)} ha). <button type="button" class="btn sm ghost" data-ret-sug="${esc(l.id)}" data-p="${esc(s.produs_id)}" data-d="${s.doza}">Folosește în rețetă</button></td></tr>` : ""}`}).join("")}
       </tbody></table></div>`; }).join("") || `<p class="note">—</p>`;
   const faraReteta = Object.keys(haCult).filter(c=>c!=="Necultivat" && !culturi.includes(c));
   if(faraReteta.length) $("pecultura").innerHTML += `<p class="warn">Fără rețetă: ${faraReteta.map(esc).join(", ")} — necesarul lor nu e calculat.</p>`;
@@ -2842,7 +2889,7 @@ function renderNav(){
   $("navSub").innerHTML = g.taburi.length>1 ? g.taburi.map(([id,et])=>
     `<button data-tab="${id}" aria-selected="${id===tabCurent}">${esc(et)}</button>`).join("") : "";
   $("navSub").hidden = g.taburi.length<2;
-  $("fab").hidden = tabCurent==="chat";
+  $("fab").hidden = tabCurent!=="harta";   // „+ Lucrare” doar pe prima pagină
 }
 function tab(t){ tabCurent=t;
   document.querySelectorAll("body > section").forEach(s=>s.hidden = s.id!=="t-"+t);
@@ -2980,6 +3027,20 @@ function renderPwa(){
         if(navigator.clipboard) navigator.clipboard.writeText(l).then(ok, ()=>prompt("Copiază linkul:", l)); else prompt("Copiază linkul:", l); };
     }).withFailureHandler(e=>{ $("pwaRez").innerHTML = `<p class="warn">${esc(e&&e.message||e)}</p>`; }).linkPwa(); };
 }
+$("pecultura").addEventListener("input", e=>{ const tr=e.target.closest("tr[data-ret]"); if(!tr) return;
+  const s=$("pecultura").querySelector(`tr.retSalv[data-ret="${CSS.escape(tr.dataset.ret)}"]`); if(s) s.hidden=false; });
+$("pecultura").addEventListener("change", e=>{ const tr=e.target.closest("tr[data-ret]"); if(!tr) return;
+  const s=$("pecultura").querySelector(`tr.retSalv[data-ret="${CSS.escape(tr.dataset.ret)}"]`); if(s) s.hidden=false; });
+$("pecultura").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.retRenunta){ renderNecesar(); return; }
+  if(b.dataset.retSalv){ const tr=$("pecultura").querySelector(`tr[data-ret="${CSS.escape(b.dataset.retSalv)}"]:not(.retSalv)`);
+    const d=tr.querySelector(".retDoza").value, p=tr.querySelector(".retProd");
+    if(d==="" || !(Number(d)>=0)){ alert("Scrie doza pe hectar (un număr)."); return; }
+    const vechi=DB.Retete.find(x=>x.id===b.dataset.retSalv)||{}, c={doza_ha:d}; if(p && p.value!==vechi.produs_id) c.produs_id=p.value;
+    salveazaReteta(b.dataset.retSalv, c).catch(()=>{}); return; }
+  if(b.dataset.retSug){ salveazaReteta(b.dataset.retSug, {produs_id:b.dataset.p, doza_ha:b.dataset.d}).catch(()=>{}); return; }
+});
 $("fab").onclick = ()=>{ if(tabCurent!=="chat"){ tab("chat"); navPush(); } };
 renderNav();
 $("fermeChips").onclick = e=>{ const b=e.target.closest("[data-f]"); if(b){ ferma=b.dataset.f; renderHarta(); } };
