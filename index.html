@@ -49,7 +49,7 @@ nav#navGrup .ic{width:18px;height:18px;flex:none}
 .btn.mare{display:block;width:100%;margin:12px 0 4px;min-height:46px;font-size:16px}
 .ist{display:grid;border-top:1px solid var(--line)}
 .ist-rand{display:grid;gap:2px;text-align:left;font:inherit;color:var(--ink);background:none;border:0;border-bottom:1px solid var(--line);padding:10px 2px;cursor:pointer;width:100%}
-.ist-rand:hover{background:var(--chip)}
+@media (hover:hover) and (pointer:fine){.ist-rand:hover{background:var(--chip)}}
 .ist-cap{display:flex;justify-content:space-between;gap:8px}
 details.plian{border:1px solid var(--line);border-radius:8px;margin-top:8px;padding:0 12px}
 details.plian>summary{cursor:pointer;padding:12px 0;font-weight:600;list-style-position:inside}
@@ -226,6 +226,12 @@ input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:
   #printZone th{background:#eee}
   @page{size:A4 landscape;margin:8mm}
 }
+ 
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button,a,[role="button"],summary,label,select,input[type="checkbox"],input[type="radio"]{touch-action:manipulation}
+button,[role="button"],summary{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@media (pointer:coarse){input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea{font-size:16px!important}}
+@media (hover:none){button:active:not(:disabled),[role="button"]:active{filter:brightness(.9)}}
 </style>
 </head>
 <body>
@@ -3473,6 +3479,7 @@ else {
 }
 </script>
 <div id="printZone" hidden></div>
+<script>document.addEventListener('touchstart',function(){},{passive:true});</script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
 </body>
 </html>
