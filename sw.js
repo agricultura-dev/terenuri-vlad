@@ -1,4 +1,4 @@
-const VERSIUNE = 'terenuri-vlad-IVrpMkoOlijn';
+const VERSIUNE = 'terenuri-vlad-fLtsX8jVkldj';
 const BAZA = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon.svg'];
 const CDN = ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css', 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js'];
